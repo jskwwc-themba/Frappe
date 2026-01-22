@@ -1,7 +1,7 @@
 FROM frappe/erpnext:v15
 # We need root to install build dependencies (git, gcc, etc)
 USER root
-RUN apt-get update && apt-get install -y git build-essential
+RUN apt-get update && apt-get install -y git build-essential pkg-config python3-dev libmariadb-dev-compat libmariadb-dev
 # Switch back to the bench user
 USER frappe
 WORKDIR /home/frappe/frappe-bench
