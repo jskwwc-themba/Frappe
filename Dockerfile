@@ -44,23 +44,34 @@ USER root
 RUN chown -R frappe:frappe /home/frappe/frappe-bench
 USER frappe
 
-# --- STAGE 2: INSTALL APPS (ISOLATION MODE) ---
+# --- STAGE 2: INSTALL APPS (AUTO-DETECT BRANCH) ---
 
-# HRMS - ADDED VERBOSE TO SEE THE ERROR
-RUN bench get-app --verbose --branch version-15 hrms
+# HRMS
+RUN bench get-app hrms
 
 # Payments
-RUN bench get-app --branch version-15 payments
+RUN bench get-app payments
 
-# --- TEMPORARILY DISABLED FOR DEBUGGING ---
-# If HRMS works, we will uncomment these one by one.
-# RUN bench get-app --branch main crm
-# RUN bench get-app --branch main helpdesk
-# RUN bench get-app --branch main builder
-# RUN bench get-app --branch version-15 lms
-# RUN bench get-app --branch version-15 insights
-# RUN bench get-app --branch main lending
-# RUN bench get-app --branch main gameplan
+# CRM (Sales)
+RUN bench get-app crm
+
+# Helpdesk
+RUN bench get-app helpdesk
+
+# Builder
+RUN bench get-app builder
+
+# LMS
+RUN bench get-app lms
+
+# Insights
+RUN bench get-app insights
+
+# Lending
+RUN bench get-app lending
+
+# Gameplan
+RUN bench get-app gameplan
 
 # --- STAGE 3: BUILD ASSETS ---
 RUN echo "---- [DEBUG] BUILDING ASSETS... ----"
