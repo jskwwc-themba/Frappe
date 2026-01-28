@@ -188,8 +188,8 @@ services:
       - -c
     command:
       - >
-        wait-for-it -t 120 db:3306; wait-for-it -t 120 redis-cache:6379; wait-for-it -t 120 redis-queue:6379; export start=`date +%s`; until [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".db_host // empty"` ]] && \
-          [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_cache // empty"` ]] && \
+        wait-for-it -t 120 db:3306; wait-for-it -t 120 redis-cache:6379; wait-for-it -t 120 redis-queue:6379; export start=`date +%s`; until [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".db_host // empty"` ]] &&
+          [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_cache // empty"` ]] &&
           [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_queue // empty"` ]];
         do
           echo "Waiting for configurator...";
@@ -200,35 +200,28 @@ services:
           fi
         done; echo "Configurator setup done!"; if [ ! -f sites/${SITE_NAME:-erp.localhost}/site_config.json ]; then
           echo "Creating site ${SITE_NAME:-erp.localhost}...";
-          bench new-site ${SITE_NAME:-erp.localhost} \
-            --mariadb-root-password ${DB_ROOT_PASSWORD:-admin} \
-            --admin-password ${ADMIN_PASSWORD:-admin} \
+          bench new-site ${SITE_NAME:-erp.localhost}
+            --mariadb-root-password ${DB_ROOT_PASSWORD:-admin}
+            --admin-password ${ADMIN_PASSWORD:-admin}
             --no-mariadb-socket;
-          echo "Installing ERPNext...";
+          echo "Installing ERPNext (already in image)...";
           bench --site ${SITE_NAME:-erp.localhost} install-app erpnext;
+          echo "=== Fetching additional apps (this takes a while) ===";
+          echo "Fetching HRMS...";
+          bench get-app --branch version-15 hrms || true;
+          echo "Fetching Payments...";
+          bench get-app --branch main payments || true;
+          echo "=== Installing additional apps ===";
           echo "Installing HRMS...";
           bench --site ${SITE_NAME:-erp.localhost} install-app hrms || true;
-          echo "Installing CRM...";
-          bench --site ${SITE_NAME:-erp.localhost} install-app crm || true;
-          echo "Installing Helpdesk...";
-          bench --site ${SITE_NAME:-erp.localhost} install-app helpdesk || true;
-          echo "Installing Builder...";
-          bench --site ${SITE_NAME:-erp.localhost} install-app builder || true;
-          echo "Installing LMS...";
-          bench --site ${SITE_NAME:-erp.localhost} install-app lms || true;
-          echo "Installing Insights...";
-          bench --site ${SITE_NAME:-erp.localhost} install-app insights || true;
-          echo "Installing Lending...";
-          bench --site ${SITE_NAME:-erp.localhost} install-app lending || true;
-          echo "Installing Gameplan...";
-          bench --site ${SITE_NAME:-erp.localhost} install-app gameplan || true;
           echo "Installing Payments...";
           bench --site ${SITE_NAME:-erp.localhost} install-app payments || true;
-          echo "Installing Print Designer...";
-          bench --site ${SITE_NAME:-erp.localhost} install-app print_designer || true;
           bench --site ${SITE_NAME:-erp.localhost} set-config host_name "https://${SITE_NAME:-erp.localhost}";
           bench use ${SITE_NAME:-erp.localhost};
-          echo "Site creation and app installation complete!";
+          echo "=== Site creation and app installation complete! ===";
+          echo "Additional apps (CRM, LMS, etc.) can be installed manually:";
+          echo "  bench get-app --branch main crm";
+          echo "  bench --site your-site install-app crm";
         else
           echo "Site ${SITE_NAME:-erp.localhost} already exists, skipping creation...";
         fi
