@@ -8,15 +8,19 @@
         "branch": "version-15"
     },
     {
+        "url": "https://github.com/frappe/payments",
+        "branch": "main"
+    },
+    {
         "url": "https://github.com/frappe/crm",
         "branch": "main"
     },
     {
-        "url": "https://github.com/frappe/helpdesk",
+        "url": "https://github.com/frappe/telephony",
         "branch": "main"
     },
     {
-        "url": "https://github.com/frappe/builder",
+        "url": "https://github.com/frappe/helpdesk",
         "branch": "main"
     },
     {
@@ -28,19 +32,11 @@
         "branch": "main"
     },
     {
-        "url": "https://github.com/frappe/lending",
+        "url": "https://github.com/frappe/builder",
         "branch": "main"
     },
     {
         "url": "https://github.com/frappe/gameplan",
-        "branch": "main"
-    },
-    {
-        "url": "https://github.com/frappe/payments",
-        "branch": "main"
-    },
-    {
-        "url": "https://github.com/frappe/print_designer",
         "branch": "main"
     }
 ]
