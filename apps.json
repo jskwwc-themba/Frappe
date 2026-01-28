@@ -9,23 +9,23 @@
     },
     {
         "url": "https://github.com/frappe/payments",
-        "branch": "main"
+        "branch": "version-15"
     },
     {
         "url": "https://github.com/frappe/crm",
-        "branch": "main"
+        "branch": "develop"
     },
     {
         "url": "https://github.com/frappe/telephony",
-        "branch": "main"
+        "branch": "develop"
     },
     {
         "url": "https://github.com/frappe/helpdesk",
-        "branch": "main"
+        "branch": "develop"
     },
     {
         "url": "https://github.com/frappe/lms",
-        "branch": "main"
+        "branch": "develop"
     },
     {
         "url": "https://github.com/frappe/insights",
@@ -33,6 +33,6 @@
     },
     {
         "url": "https://github.com/frappe/builder",
-        "branch": "main"
+        "branch": "master"
     }
 ]
