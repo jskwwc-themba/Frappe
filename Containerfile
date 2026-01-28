@@ -33,7 +33,7 @@ RUN if [ -n "${APPS_JSON_BASE64}" ]; then \
     app_name=$(basename $url .git); \
     echo "=== Getting $app_name from $url (branch: $branch) ==="; \
     if [ "$app_name" != "erpnext" ] && [ "$app_name" != "frappe" ]; then \
-    bench get-app --branch $branch $url || echo "Failed to get $app_name, continuing..."; \
+    bench get-app --branch $branch --skip-assets $url || echo "Failed to get $app_name, continuing..."; \
     fi; \
     done; \
     rm /tmp/apps.json; \
