@@ -40,6 +40,9 @@ RUN if [ -n "${APPS_JSON_BASE64}" ]; then \
     fi
 
 # Build assets
+# Create a dummy common_site_config.json because some apps (LMS, Helpdesk) 
+# expect socketio_port to be defined during asset compilation.
+RUN echo '{"socketio_port": 9000}' > sites/common_site_config.json
 RUN bench build --production
 
 # Clean up

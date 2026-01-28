@@ -34,9 +34,5 @@
     {
         "url": "https://github.com/frappe/builder",
         "branch": "main"
-    },
-    {
-        "url": "https://github.com/frappe/gameplan",
-        "branch": "main"
     }
 ]
