@@ -4,11 +4,10 @@
 # =============================================================================
 
 x-customizable-image:
-  # For custom build: use your own image name
-  # image: ghcr.io/jskwwc-themba/frappe-apps:v15
+  # Use the custom image built on the server
   &customizable_image
-  image: ${CUSTOM_IMAGE:-frappe/erpnext}:${CUSTOM_TAG:-v15}
-  pull_policy: ${PULL_POLICY:-always}
+  image: ${CUSTOM_IMAGE:-frappe-apps}:${CUSTOM_TAG:-v15}
+  pull_policy: ${PULL_POLICY:-if_not_present}
   restart: ${RESTART_POLICY:-unless-stopped}
 
 x-depends-on-configurator: &depends_on_configurator
