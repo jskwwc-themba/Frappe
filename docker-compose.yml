@@ -3,30 +3,14 @@
 # All apps are baked into the custom image during build
 # =============================================================================
 
-x-customizable-image:
-  # Use the custom image built on the server
-  &customizable_image
-  image: frappe-apps:v15
-  pull_policy: ${PULL_POLICY:-if_not_present}
-  restart: ${RESTART_POLICY:-unless-stopped}
-
-x-depends-on-configurator: &depends_on_configurator
-  depends_on:
-    configurator:
-      condition: service_healthy
-
-x-backend-defaults: &backend_defaults
-  <<: [ *depends_on_configurator, *customizable_image ]
-  volumes:
-    - sites:/home/frappe/frappe-bench/sites
-    - logs:/home/frappe/frappe-bench/logs
-
 services:
   # =============================================================================
   # Configurator - Sets up common config for all services
   # =============================================================================
   configurator:
-    <<: *customizable_image
+    image: frappe-apps:v15
+    pull_policy: ${PULL_POLICY:-if_not_present}
+    restart: on-failure
     platform: linux/amd64
     entrypoint:
       - bash
@@ -55,7 +39,6 @@ services:
         condition: service_started
       redis-queue:
         condition: service_started
-    restart: on-failure
     networks:
       - frappe-network
 
@@ -63,8 +46,16 @@ services:
   # Backend - Gunicorn application server
   # =============================================================================
   backend:
-    <<: *backend_defaults
+    image: frappe-apps:v15
+    pull_policy: ${PULL_POLICY:-if_not_present}
+    restart: ${RESTART_POLICY:-unless-stopped}
     platform: linux/amd64
+    depends_on:
+      configurator:
+        condition: service_healthy
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
     networks:
       - frappe-network
 
@@ -72,7 +63,9 @@ services:
   # Frontend - Nginx proxy
   # =============================================================================
   frontend:
-    <<: *customizable_image
+    image: frappe-apps:v15
+    pull_policy: ${PULL_POLICY:-if_not_present}
+    restart: ${RESTART_POLICY:-unless-stopped}
     platform: linux/amd64
     command:
       - nginx-entrypoint.sh
@@ -100,7 +93,9 @@ services:
   # WebSocket - Socket.IO for realtime
   # =============================================================================
   websocket:
-    <<: [ *depends_on_configurator, *customizable_image ]
+    image: frappe-apps:v15
+    pull_policy: ${PULL_POLICY:-if_not_present}
+    restart: ${RESTART_POLICY:-unless-stopped}
     platform: linux/amd64
     command:
       - node
@@ -108,6 +103,9 @@ services:
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      configurator:
+        condition: service_healthy
     networks:
       - frappe-network
 
@@ -115,23 +113,47 @@ services:
   # Workers - Background job processing
   # =============================================================================
   queue-short:
-    <<: *backend_defaults
+    image: frappe-apps:v15
+    pull_policy: ${PULL_POLICY:-if_not_present}
+    restart: ${RESTART_POLICY:-unless-stopped}
     platform: linux/amd64
     command: bench worker --queue short,default
+    depends_on:
+      configurator:
+        condition: service_healthy
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
     networks:
       - frappe-network
 
   queue-long:
-    <<: *backend_defaults
+    image: frappe-apps:v15
+    pull_policy: ${PULL_POLICY:-if_not_present}
+    restart: ${RESTART_POLICY:-unless-stopped}
     platform: linux/amd64
     command: bench worker --queue long,default,short
+    depends_on:
+      configurator:
+        condition: service_healthy
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
     networks:
       - frappe-network
 
   scheduler:
-    <<: *backend_defaults
+    image: frappe-apps:v15
+    pull_policy: ${PULL_POLICY:-if_not_present}
+    restart: ${RESTART_POLICY:-unless-stopped}
     platform: linux/amd64
     command: bench schedule
+    depends_on:
+      configurator:
+        condition: service_healthy
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
     networks:
       - frappe-network
 
@@ -186,7 +208,9 @@ services:
   # Create Site - One-time site creation (runs once and exits)
   # =============================================================================
   create-site:
-    <<: *customizable_image
+    image: frappe-apps:v15
+    pull_policy: ${PULL_POLICY:-if_not_present}
+    restart: "no"
     platform: linux/amd64
     volumes:
       - sites:/home/frappe/frappe-bench/sites
@@ -222,7 +246,6 @@ services:
     depends_on:
       configurator:
         condition: service_healthy
-    restart: "no"
     networks:
       - frappe-network
 
