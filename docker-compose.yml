@@ -13,7 +13,7 @@ x-customizable-image:
 x-depends-on-configurator: &depends_on_configurator
   depends_on:
     configurator:
-      condition: service_completed_successfully
+      condition: service_healthy
 
 x-backend-defaults: &backend_defaults
   <<: [ *depends_on_configurator, *customizable_image ]
@@ -40,6 +40,11 @@ services:
       REDIS_CACHE: redis-cache:6379
       REDIS_QUEUE: redis-queue:6379
       SOCKETIO_PORT: 9000
+    healthcheck:
+      test: [ "CMD", "sh", "-c", "test -f sites/apps.txt" ]
+      interval: 5s
+      retries: 24
+      start_period: 5s
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
@@ -213,7 +218,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
     depends_on:
       configurator:
-        condition: service_completed_successfully
+        condition: service_healthy
     restart: "no"
     networks:
       - frappe-network
