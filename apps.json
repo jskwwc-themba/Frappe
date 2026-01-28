@@ -21,7 +21,7 @@
     },
     {
         "url": "https://github.com/frappe/helpdesk",
-        "branch": "develop"
+        "branch": "main"
     },
     {
         "url": "https://github.com/frappe/lms",
