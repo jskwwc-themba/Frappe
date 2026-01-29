@@ -42,10 +42,13 @@ services:
     depends_on:
       - backend
       - websocket
+    expose:
+      - "8080"
     networks:
       - frappe-network
     labels:
       - coolify.managed=true
+      - traefik.http.services.frontend.loadbalancer.server.port=8080
 
   # =============================================================================
   # WebSocket - Socket.IO for realtime
