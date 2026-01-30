@@ -1,20 +1,69 @@
 # =============================================================================
-# ERPNext Basic - Docker Compose for Coolify
-# Using official frappe/erpnext:v15 image
-# Install additional apps via: bench --site [site] install-app [app]
+# ERPNext Complete Suite - Docker Compose for Coolify
+# All apps are baked into the custom image during build
 # =============================================================================
 
+x-customizable-image: &customizable_image
+  # Use the custom image built on the server
+  image: frappe-apps:v15
+  pull_policy: ${PULL_POLICY:-if_not_present}
+  restart: ${RESTART_POLICY:-unless-stopped}
+
+x-depends-on-configurator: &depends_on_configurator
+  depends_on:
+    configurator:
+      condition: service_healthy
+
+x-backend-defaults: &backend_defaults
+  <<: [ *depends_on_configurator, *customizable_image ]
+  volumes:
+    - sites:/home/frappe/frappe-bench/sites
+    - logs:/home/frappe/frappe-bench/logs
+
 services:
+  # =============================================================================
+  # Configurator - Sets up common config for all services
+  # =============================================================================
+  configurator:
+    <<: *customizable_image
+    platform: linux/amd64
+    entrypoint:
+      - bash
+      - -c
+    command:
+      - >
+        ls -1 apps > sites/apps.txt && bench set-config -g db_host $$DB_HOST && bench set-config -gp db_port $$DB_PORT && bench set-config -g redis_cache "redis://$$REDIS_CACHE" && bench set-config -g redis_queue "redis://$$REDIS_QUEUE" && bench set-config -g redis_socketio "redis://$$REDIS_QUEUE" && bench set-config -gp socketio_port $$SOCKETIO_PORT && echo "Configurator finished" && touch sites/config_ready && tail -f /dev/null
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+      SOCKETIO_PORT: 9000
+    healthcheck:
+      test: [ "CMD", "test", "-f", "sites/config_ready" ]
+      interval: 5s
+      retries: 24
+      start_period: 5s
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+    restart: on-failure
+    networks:
+      - frappe-network
+
   # =============================================================================
   # Backend - Gunicorn application server
   # =============================================================================
   backend:
-    image: frappe/erpnext:v15
-    restart: unless-stopped
+    <<: *backend_defaults
     platform: linux/amd64
-    volumes:
-      - sites:/home/frappe/frappe-bench/sites
-      - logs:/home/frappe/frappe-bench/logs
     networks:
       - frappe-network
 
@@ -22,8 +71,7 @@ services:
   # Frontend - Nginx proxy
   # =============================================================================
   frontend:
-    image: frappe/erpnext:v15
-    restart: unless-stopped
+    <<: *customizable_image
     platform: linux/amd64
     command:
       - nginx-entrypoint.sh
@@ -42,20 +90,16 @@ services:
     depends_on:
       - backend
       - websocket
-    expose:
-      - "8080"
     networks:
       - frappe-network
     labels:
       - coolify.managed=true
-      - traefik.http.services.frontend.loadbalancer.server.port=8080
 
   # =============================================================================
   # WebSocket - Socket.IO for realtime
   # =============================================================================
   websocket:
-    image: frappe/erpnext:v15
-    restart: unless-stopped
+    <<: [ *depends_on_configurator, *customizable_image ]
     platform: linux/amd64
     command:
       - node
@@ -70,35 +114,23 @@ services:
   # Workers - Background job processing
   # =============================================================================
   queue-short:
-    image: frappe/erpnext:v15
-    restart: unless-stopped
+    <<: *backend_defaults
     platform: linux/amd64
     command: bench worker --queue short,default
-    volumes:
-      - sites:/home/frappe/frappe-bench/sites
-      - logs:/home/frappe/frappe-bench/logs
     networks:
       - frappe-network
 
   queue-long:
-    image: frappe/erpnext:v15
-    restart: unless-stopped
+    <<: *backend_defaults
     platform: linux/amd64
     command: bench worker --queue long,default,short
-    volumes:
-      - sites:/home/frappe/frappe-bench/sites
-      - logs:/home/frappe/frappe-bench/logs
     networks:
       - frappe-network
 
   scheduler:
-    image: frappe/erpnext:v15
-    restart: unless-stopped
+    <<: *backend_defaults
     platform: linux/amd64
     command: bench schedule
-    volumes:
-      - sites:/home/frappe/frappe-bench/sites
-      - logs:/home/frappe/frappe-bench/logs
     networks:
       - frappe-network
 
@@ -113,6 +145,9 @@ services:
     networks:
       - frappe-network
 
+  # =============================================================================
+  # Redis - Caching and queue
+  # =============================================================================
   redis-queue:
     image: redis:7-alpine
     restart: unless-stopped
@@ -147,44 +182,14 @@ services:
       - frappe-network
 
   # =============================================================================
-  # Configurator - One-time setup (runs once)
+  # Create Site - One-time site creation (runs once and exits)
   # =============================================================================
-  configurator:
-    image: frappe/erpnext:v15
-    restart: "no"
+  create-site:
+    <<: *customizable_image
     platform: linux/amd64
-    entrypoint:
-      - bash
-      - -c
-    command:
-      - >
-        ls -1 apps > sites/apps.txt; bench set-config -g db_host $$DB_HOST; bench set-config -gp db_port $$DB_PORT; bench set-config -g redis_cache "redis://$$REDIS_CACHE"; bench set-config -g redis_queue "redis://$$REDIS_QUEUE"; bench set-config -g redis_socketio "redis://$$REDIS_QUEUE"; bench set-config -gp socketio_port $$SOCKETIO_PORT;
-    environment:
-      DB_HOST: db
-      DB_PORT: "3306"
-      REDIS_CACHE: redis-cache:6379
-      REDIS_QUEUE: redis-queue:6379
-      SOCKETIO_PORT: 9000
     volumes:
       - sites:/home/frappe/frappe-bench/sites
       - logs:/home/frappe/frappe-bench/logs
-    depends_on:
-      db:
-        condition: service_healthy
-      redis-cache:
-        condition: service_started
-      redis-queue:
-        condition: service_started
-    networks:
-      - frappe-network
-
-  # =============================================================================
-  # Create Site - One-time site creation
-  # =============================================================================
-  create-site:
-    image: frappe/erpnext:v15
-    restart: "no"
-    platform: linux/amd64
     entrypoint:
       - bash
       - -c
@@ -197,30 +202,26 @@ services:
           echo "Waiting for configurator...";
           sleep 5;
           if (( `date +%s`-start > 120 )); then
-            echo "Timeout waiting for configurator. Exiting.";
+            echo "Timeout waiting for configurator...";
             exit 1;
           fi
-        done; echo "Configurator complete!"; if [ ! -f sites/${SITE_NAME:-erp.jskwwc.com}/site_config.json ]; then
-          echo "Creating new site...";
-          bench new-site ${SITE_NAME:-erp.jskwwc.com}
+        done; echo "=== Configurator setup done! ==="; if [ ! -f sites/${SITE_NAME:-erp.localhost}/site_config.json ]; then
+          echo "=== Creating NEW site ${SITE_NAME:-erp.localhost} ===";
+          bench new-site ${SITE_NAME:-erp.localhost}
             --mariadb-root-password ${DB_ROOT_PASSWORD:-admin}
             --admin-password ${ADMIN_PASSWORD:-admin}
             --no-mariadb-socket;
-          bench --site ${SITE_NAME:-erp.jskwwc.com} install-app erpnext;
-          bench --site ${SITE_NAME:-erp.jskwwc.com} set-config host_name "https://${SITE_NAME:-erp.jskwwc.com}";
         else
-          echo "Site already exists.";
-        fi; bench use ${SITE_NAME:-erp.jskwwc.com}; echo "Done! Site ready at ${SITE_NAME:-erp.jskwwc.com}";
+          echo "=== Site ${SITE_NAME:-erp.localhost} already exists ===";
+        fi; bench use ${SITE_NAME:-erp.localhost} && echo "" && echo "========================================" && echo "=== INSTALLING APPS (from image) ===" && echo "========================================" && echo "" && echo "[1/9] Installing ERPNext..." && (bench --site ${SITE_NAME:-erp.localhost} install-app erpnext || echo "ERPNext already installed") && echo "[2/9] Installing HRMS..." && (bench --site ${SITE_NAME:-erp.localhost} install-app hrms || echo "HRMS already installed or failed") && echo "[3/9] Installing Payments..." && (bench --site ${SITE_NAME:-erp.localhost} install-app payments || echo "Payments already installed or failed") && echo "[4/9] Installing CRM..." && (bench --site ${SITE_NAME:-erp.localhost} install-app crm || echo "CRM already installed or failed") && echo "[5/9] Installing Telephony..." && (bench --site ${SITE_NAME:-erp.localhost} install-app telephony || echo "Telephony already installed or failed") && echo "[6/9] Installing Helpdesk..." && (bench --site ${SITE_NAME:-erp.localhost} install-app helpdesk || echo "Helpdesk already installed or failed") && echo "[7/9] Installing LMS..." && (bench --site ${SITE_NAME:-erp.localhost} install-app lms || echo "LMS already installed or failed") && echo "[8/9] Installing Insights..." && (bench --site ${SITE_NAME:-erp.localhost} install-app insights || echo "Insights already installed or failed") && echo "[9/9] Installing Builder..." && (bench --site ${SITE_NAME:-erp.localhost} install-app builder || echo "Builder already installed or failed") && echo "" && echo "=== Configuring site ===" && bench --site ${SITE_NAME:-erp.localhost} set-config host_name "https://${SITE_NAME:-erp.localhost}" && echo "" && echo "========================================" && echo "=== COMPLETE! ===" && echo "========================================" && echo "Site: ${SITE_NAME:-erp.localhost}" && echo "User: Administrator" && echo "Pass: (your ADMIN_PASSWORD)" && echo "========================================" && tail -f /dev/null
     environment:
-      SITE_NAME: ${SITE_NAME:-erp.jskwwc.com}
+      SITE_NAME: ${SITE_NAME:-erp.localhost}
       DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
-    volumes:
-      - sites:/home/frappe/frappe-bench/sites
-      - logs:/home/frappe/frappe-bench/logs
     depends_on:
       configurator:
-        condition: service_completed_successfully
+        condition: service_healthy
+    restart: "no"
     networks:
       - frappe-network
 
